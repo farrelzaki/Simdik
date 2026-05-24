@@ -12,6 +12,9 @@ use App\Http\Controllers\Admin\NotifikasiController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Pendidik\ProfilPerubahanController;
 use App\Http\Controllers\Admin\PerubahanProfilController;
+use App\Http\Controllers\Pendidik\NotifikasiPendidikController;
+use App\Http\Controllers\Pendidik\HapusAkunController;
+use App\Http\Controllers\Admin\HapusAkunAdminController;
 
 // ─── Public ───────────────────────────────────────────
 Route::post('/auth/login',    [AuthController::class, 'login']);
@@ -22,14 +25,24 @@ Route::middleware('auth:sanctum')->post('/auth/logout', [AuthController::class, 
 
 // ─── Pendidik ─────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'pendidik_aktif'])->prefix('pendidik')->group(function () {
-    Route::get('/profil',            [ProfilController::class, 'show']);
-    Route::put('/profil',            [ProfilController::class, 'update']);
-    Route::get('/status-verifikasi', [ProfilController::class, 'statusVerifikasi']);
-    Route::get('/perubahan',           [ProfilPerubahanController::class, 'index']);
-    Route::post('/perubahan/profil',   [ProfilPerubahanController::class, 'ajukanPerubahan']);
-    Route::post('/perubahan/dokumen',  [ProfilPerubahanController::class, 'ajukanDokumen']);
-    Route::post('/foto-profil',        [ProfilPerubahanController::class, 'uploadFoto']);
-    Route::delete('/foto-profil',      [ProfilPerubahanController::class, 'hapusFoto']);
+    Route::get('/profil',             [ProfilController::class, 'show']);
+    Route::put('/profil',             [ProfilController::class, 'update']);
+    Route::get('/status-verifikasi',  [ProfilController::class, 'statusVerifikasi']);
+
+    // Perubahan profil
+    Route::get('/perubahan',          [ProfilPerubahanController::class, 'index']);
+    Route::post('/perubahan/profil',  [ProfilPerubahanController::class, 'ajukanPerubahan']);
+    Route::post('/perubahan/dokumen', [ProfilPerubahanController::class, 'ajukanDokumen']);
+    Route::post('/foto-profil',       [ProfilPerubahanController::class, 'uploadFoto']);
+    Route::delete('/foto-profil',     [ProfilPerubahanController::class, 'hapusFoto']);
+
+    // Notifikasi pendidik
+    Route::get('/notifikasi',                        [NotifikasiPendidikController::class, 'index']);
+    Route::patch('/notifikasi/baca-semua',           [NotifikasiPendidikController::class, 'tandaiSemuaDibaca']);
+    Route::patch('/notifikasi/{id}/baca',            [NotifikasiPendidikController::class, 'tandaiDibaca']);
+
+    // Hapus akun
+    Route::post('/hapus-akun',        [HapusAkunController::class, 'ajukan']);
 });
 
 // ─── Admin ────────────────────────────────────────────
@@ -62,4 +75,6 @@ Route::middleware(['auth:sanctum', 'is_admin'])->prefix('admin')->group(function
     Route::get('/perubahan-profil',           [PerubahanProfilController::class, 'index']);
     Route::get('/perubahan-profil/{id}',      [PerubahanProfilController::class, 'show']);
     Route::patch('/perubahan-profil/{id}',    [PerubahanProfilController::class, 'review']);
+    Route::get('/hapus-akun-request',        [HapusAkunAdminController::class, 'index']);
+    Route::patch('/hapus-akun-request/{id}', [HapusAkunAdminController::class, 'update']);
 });

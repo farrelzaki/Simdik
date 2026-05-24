@@ -14,6 +14,7 @@ import Laporan from './pages/admin/Laporan'
 import AdminNotifikasi from './pages/admin/Notifikasi'
 import AdminPengaturan from './pages/admin/Pengaturan'
 import PerubahanProfil from './pages/admin/PerubahanProfil'
+import HapusAkunRequest from './pages/admin/HapusAkunRequest'
 
 // Pendidik
 import PendidikLayout from './pages/pendidik/Layout'
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="notifikasi"        element={<AdminNotifikasi />} />
           <Route path="pengaturan"        element={<AdminPengaturan />} />
           <Route path="perubahan-profil" element={<PerubahanProfil />} />
+          <Route path="hapus-akun" element={<HapusAkunRequest />} />
         </Route>
 
         {/* Pendidik */}

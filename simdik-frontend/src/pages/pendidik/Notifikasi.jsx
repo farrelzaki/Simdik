@@ -17,7 +17,7 @@ const formatWaktu = (dateStr) => {
   const hrs  = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
   if (hrs < 1)    return 'Baru saja'
-  if (hrs < 24)   return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')} AM`
+  if (hrs < 24)   return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
   if (days === 1) return `Kemarin, ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
   return `${days} Hari Lalu`
 }
@@ -34,31 +34,38 @@ const groupByWaktu = (items) => {
   return groups
 }
 
-// Data dummy untuk pendidik (nanti bisa disambung ke backend notifikasi pendidik)
-const DUMMY_NOTIFS = [
-  { id_notifikasi: 1, judul: 'Dokumen Ijazah Ditolak', pesan: 'Pemeriksaan sistem menemukan bahwa scan dokumen ijazah S2 tidak terbaca dengan jelas. Mohon lakukan scan ulang dengan resolusi minimal 300 DPI.', tipe: 'error', dibaca: false, created_at: new Date().toISOString(), link: '/pendidik/dokumen' },
-  { id_notifikasi: 2, judul: 'Sertifikasi Pendidik Diverifikasi', pesan: 'Selamat! Sertifikasi kompetensi profesional Anda telah berhasil diverifikasi.', tipe: 'success', dibaca: false, created_at: new Date().toISOString(), link: null },
-  { id_notifikasi: 3, judul: 'Update Jadwal Pemeliharaan', pesan: 'Portal MIS akan mengalami masa pemeliharaan rutin pada hari Sabtu, jam 22:00 WIB.', tipe: 'info', dibaca: true, created_at: new Date(Date.now() - 86400000).toISOString(), link: null },
-  { id_notifikasi: 4, judul: 'Lengkapi Profil Kepegawaian', pesan: 'Batas akhir pemutakhiran data profil kepegawaian periode Ganjil adalah 3 hari lagi. Pastikan semua data valid.', tipe: 'warning', dibaca: true, created_at: new Date(Date.now() - 86400000).toISOString(), link: '/pendidik/profil' },
-  { id_notifikasi: 5, judul: 'Pengumuman Hibah Penelitian', pesan: 'Pendaftaran hibah penelitian internal semester genap telah dibuka.', tipe: 'promo', dibaca: true, created_at: new Date(Date.now() - 5 * 86400000).toISOString(), link: null },
-]
-
 export default function PendidikNotifikasi() {
-  const [notifikasi, setNotifikasi] = useState(DUMMY_NOTIFS)
+  const [notifikasi, setNotifikasi] = useState([])
+  const [loading, setLoading]       = useState(true)
   const [marking, setMarking]       = useState(false)
 
-  const tandaiSemuaDibaca = () => {
-    setMarking(true)
-    setTimeout(() => {
-      setNotifikasi(prev => prev.map(n => ({ ...n, dibaca: true })))
-      setMarking(false)
-    }, 500)
+  const fetchNotifikasi = () => {
+    api.get('/pendidik/notifikasi')
+      .then(res => setNotifikasi(res.data.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }
 
-  const tandaiDibaca = (id) => {
-    setNotifikasi(prev => prev.map(n =>
-      n.id_notifikasi === id ? { ...n, dibaca: true } : n
-    ))
+  useEffect(() => { fetchNotifikasi() }, [])
+
+  const tandaiSemuaDibaca = async () => {
+    setMarking(true)
+    try {
+      await api.patch('/pendidik/notifikasi/baca-semua')
+      setNotifikasi(prev => prev.map(n => ({ ...n, dibaca: true })))
+    } catch {
+    } finally {
+      setMarking(false)
+    }
+  }
+
+  const tandaiDibaca = async (id) => {
+    try {
+      await api.patch(`/pendidik/notifikasi/${id}/baca`)
+      setNotifikasi(prev => prev.map(n =>
+        n.id_notifikasi === id ? { ...n, dibaca: true } : n
+      ))
+    } catch {}
   }
 
   const belumDibaca = notifikasi.filter(n => !n.dibaca).length
@@ -75,14 +82,18 @@ export default function PendidikNotifikasi() {
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
             <Filter size={14} /> Filter
           </button>
-          <button onClick={tandaiSemuaDibaca} disabled={marking || belumDibaca === 0}
+          <button onClick={tandaiSemuaDibaca}
+            disabled={marking || belumDibaca === 0}
             className="flex items-center gap-2 px-4 py-2 bg-[#054a5c] text-white rounded-xl text-sm hover:bg-[#033a47] disabled:opacity-60">
-            <CheckCheck size={14} /> Tandai Semua Dibaca
+            <CheckCheck size={14} />
+            {marking ? 'Memproses...' : 'Tandai Semua Dibaca'}
           </button>
         </div>
       </div>
 
-      {notifikasi.length === 0 ? (
+      {loading ? (
+        <p className="text-center text-sm text-gray-400 py-12">Memuat notifikasi...</p>
+      ) : notifikasi.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
           <Bell size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Tidak ada notifikasi</p>
@@ -132,11 +143,13 @@ export default function PendidikNotifikasi() {
         })
       )}
 
-      <div className="text-center">
-        <button className="text-sm text-[#054a5c] font-medium hover:underline">
-          Tampilkan Lebih Banyak
-        </button>
-      </div>
+      {notifikasi.length > 0 && (
+        <div className="text-center">
+          <button className="text-sm text-[#054a5c] font-medium hover:underline">
+            Tampilkan Lebih Banyak
+          </button>
+        </div>
+      )}
     </div>
   )
 }

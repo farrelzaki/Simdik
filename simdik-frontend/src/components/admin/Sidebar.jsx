@@ -1,18 +1,19 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, ClipboardList,
-  BarChart2, Bell, Settings, LogOut, GitPullRequest
+  BarChart2, Bell, Settings, LogOut, GitPullRequest, UserX
 } from 'lucide-react'
 import api from '../../lib/axios'
 
 const menus = [
-  { to: '/admin/dashboard',         icon: LayoutDashboard,  label: 'Dashboard'            },
-  { to: '/admin/pendidik',          icon: Users,            label: 'Data Pendidik/Tendik' },
-  { to: '/admin/perubahan-profil',  icon: GitPullRequest,   label: 'Review Perubahan'     },
-  { to: '/admin/registrasi',        icon: ClipboardList,    label: 'Data Registrasi'      },
-  { to: '/admin/laporan',           icon: BarChart2,        label: 'Laporan'              },
-  { to: '/admin/notifikasi',        icon: Bell,             label: 'Notifikasi'           },
-  { to: '/admin/pengaturan',        icon: Settings,         label: 'Pengaturan'           },
+  { to: '/admin/dashboard',        icon: LayoutDashboard, label: 'Dashboard'            },
+  { to: '/admin/pendidik',         icon: Users,           label: 'Data Pendidik/Tendik' },
+  { to: '/admin/perubahan-profil', icon: GitPullRequest,  label: 'Review Perubahan'     },
+  { to: '/admin/registrasi',       icon: ClipboardList,   label: 'Data Registrasi'      },
+  { to: '/admin/hapus-akun',       icon: UserX,           label: 'Hapus Akun'           },
+  { to: '/admin/laporan',          icon: BarChart2,       label: 'Laporan'              },
+  { to: '/admin/notifikasi',       icon: Bell,            label: 'Notifikasi'           },
+  { to: '/admin/pengaturan',       icon: Settings,        label: 'Pengaturan'           },
 ]
 
 export default function Sidebar() {

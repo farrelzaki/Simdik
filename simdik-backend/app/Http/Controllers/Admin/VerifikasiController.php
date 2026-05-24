@@ -20,10 +20,14 @@ class VerifikasiController extends Controller
         $query = Pendidik::with(['dokumen', 'verifikasi'])
             ->orderBy('created_at', 'desc');
 
-        if ($request->filled('status')) {
-            $query->where('status_akun', $request->status);
-        } else {
+        $status = $request->get('status', 'pending');
+
+        if ($status === 'pending') {
             $query->where('status_akun', 'pending');
+        } elseif ($status === 'disetujui') {
+            $query->where('status_akun', 'aktif');
+        } elseif ($status === 'ditolak') {
+            $query->where('status_akun', 'ditolak');
         }
 
         return response()->json($query->paginate(10));

@@ -102,20 +102,25 @@ class AuthController extends Controller
             'nik'                 => 'required|unique:pendidik,nik',
             'nama'                => 'required|string|max:100',
             'email'               => 'required|email|unique:pendidik,email',
-            'password'            => 'required|min:8|confirmed', // butuh password_confirmation
+            'password'            => 'required|min:8|confirmed',
             'no_hp'               => 'required|string|max:20',
             'alamat'              => 'required|string',
             'pendidikan_terakhir' => 'required|string',
             'status_kepegawaian'  => 'required|in:PNS,PPPK,Honorer,GTT',
-            // Dokumen wajib
+            // Field tambahan opsional
+            'tempat_lahir'        => 'nullable|string',
+            'tanggal_lahir'       => 'nullable|date',
+            'jenis_kelamin'       => 'nullable|in:Laki-laki,Perempuan',
+            'jabatan'             => 'nullable|string',
+            'unit_kerja'          => 'nullable|string',
+            'bidang_ajar'         => 'nullable|string',
+            // Dokumen
             'file_identitas'      => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'file_kualifikasi'    => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            // Dokumen opsional
             'file_sertifikasi'    => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
         DB::transaction(function () use ($request) {
-            // Simpan data pendidik
             $pendidik = Pendidik::create([
                 'nik'                 => $request->nik,
                 'nama'                => $request->nama,
@@ -125,23 +130,25 @@ class AuthController extends Controller
                 'alamat'              => $request->alamat,
                 'pendidikan_terakhir' => $request->pendidikan_terakhir,
                 'status_kepegawaian'  => $request->status_kepegawaian,
+                'tempat_lahir'        => $request->tempat_lahir,
+                'tanggal_lahir'       => $request->tanggal_lahir,
+                'jenis_kelamin'       => $request->jenis_kelamin,
+                'jabatan'             => $request->jabatan,
+                'unit_kerja'          => $request->unit_kerja,
+                'bidang_ajar'         => $request->bidang_ajar,
                 'status_akun'         => 'pending',
             ]);
 
-            // Simpan file ke storage/app/private/dokumen/{id_pendidik}/
             $pathIdentitas   = $request->file('file_identitas')
                                 ->store("dokumen/{$pendidik->id_pendidik}", 'local');
-
             $pathKualifikasi = $request->file('file_kualifikasi')
                                 ->store("dokumen/{$pendidik->id_pendidik}", 'local');
-
             $pathSertifikasi = null;
             if ($request->hasFile('file_sertifikasi')) {
                 $pathSertifikasi = $request->file('file_sertifikasi')
                                     ->store("dokumen/{$pendidik->id_pendidik}", 'local');
             }
 
-            // Simpan dokumen
             Dokumen::create([
                 'id_pendidik'        => $pendidik->id_pendidik,
                 'data_identitas'     => $pathIdentitas,
@@ -150,7 +157,6 @@ class AuthController extends Controller
                 'status_kelengkapan' => 'lengkap',
             ]);
 
-            // Buat entri verifikasi dengan status pending
             Verifikasi::create([
                 'id_pendidik'       => $pendidik->id_pendidik,
                 'status_verifikasi' => 'pending',

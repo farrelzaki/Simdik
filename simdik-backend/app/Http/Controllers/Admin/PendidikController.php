@@ -18,27 +18,27 @@ class PendidikController extends Controller
         $query = Pendidik::with(['dokumen', 'verifikasi'])
             ->where('status_akun', 'aktif');
 
-        // Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('nama', 'like', "%{$request->search}%")
-                  ->orWhere('nik', 'like', "%{$request->search}%")
-                  ->orWhere('email', 'like', "%{$request->search}%");
+                ->orWhere('nik', 'like', "%{$request->search}%")
+                ->orWhere('email', 'like', "%{$request->search}%");
             });
         }
 
-        // Filter status kepegawaian
         if ($request->filled('status_kepegawaian')) {
             $query->where('status_kepegawaian', $request->status_kepegawaian);
         }
 
-        // Filter pendidikan terakhir
+        if ($request->filled('unit_kerja')) {
+            $query->where('unit_kerja', $request->unit_kerja);
+        }
+
         if ($request->filled('pendidikan_terakhir')) {
             $query->where('pendidikan_terakhir', $request->pendidikan_terakhir);
         }
 
         $data = $query->orderBy('nama')->paginate(10);
-
         return response()->json($data);
     }
 
@@ -104,12 +104,20 @@ class PendidikController extends Controller
             'alamat'              => 'sometimes|string',
             'pendidikan_terakhir' => 'sometimes|string',
             'status_kepegawaian'  => 'sometimes|in:PNS,PPPK,Honorer,GTT',
+            'jabatan'             => 'sometimes|string|nullable',
+            'unit_kerja'          => 'sometimes|string|nullable',
+            'bidang_ajar'         => 'sometimes|string|nullable',
+            'tempat_lahir'        => 'sometimes|string|nullable',
+            'tanggal_lahir'       => 'sometimes|date|nullable',
+            'jenis_kelamin'       => 'sometimes|in:Laki-laki,Perempuan|nullable',
             'password'            => 'sometimes|min:8',
         ]);
 
         $data = $request->only([
-            'nik', 'nama', 'email', 'no_hp',
-            'alamat', 'pendidikan_terakhir', 'status_kepegawaian'
+            'nik', 'nama', 'email', 'no_hp', 'alamat',
+            'pendidikan_terakhir', 'status_kepegawaian',
+            'jabatan', 'unit_kerja', 'bidang_ajar',
+            'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
         ]);
 
         if ($request->filled('password')) {
@@ -120,7 +128,7 @@ class PendidikController extends Controller
 
         return response()->json([
             'message' => 'Data pendidik berhasil diperbarui',
-            'data'    => $pendidik->fresh(),
+            'data'    => $pendidik->fresh()->load(['dokumen', 'verifikasi']),
         ]);
     }
 

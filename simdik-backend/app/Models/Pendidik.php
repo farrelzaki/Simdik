@@ -17,7 +17,7 @@ class Pendidik extends Authenticatable
         'no_hp', 'alamat', 'pendidikan_terakhir',
         'status_kepegawaian', 'status_akun',
         'foto_profil', 'tempat_lahir', 'tanggal_lahir',
-        'jenis_kelamin', 'jabatan', 'unit_kerja',
+        'jenis_kelamin', 'jabatan', 'unit_kerja', 'bidang_ajar',
     ];
 
     protected $casts = [
