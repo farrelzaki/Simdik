@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Services\NotificationService;
 use App\Http\Controllers\Controller;
 use App\Models\Pendidik;
 use App\Models\TataUsaha;
@@ -161,6 +162,14 @@ class AuthController extends Controller
                 'id_pendidik'       => $pendidik->id_pendidik,
                 'status_verifikasi' => 'pending',
             ]);
+
+            // Notifikasi ke semua admin
+            NotificationService::semuaAdmin(
+                "Registrasi Baru: {$pendidik->nama}",
+                "Ada pendaftar baru yang menunggu verifikasi berkas.",
+                'info',
+                '/admin/registrasi'
+            );
         });
 
         return response()->json([

@@ -1,25 +1,69 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, Send, User, GraduationCap, FileText, ChevronRight, X, AlertTriangle } from 'lucide-react'
 import api from '../../lib/axios'
+import { downloadFile, previewFile, isImage } from '../../lib/fileHelper'
+
+// Komponen untuk preview satu dokumen
+function DokumenPreview({ path, label }) {
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  useEffect(() => {
+    if (!path) return
+    setLoadingPreview(true)
+    previewFile(path, setPreviewUrl).finally(() => setLoadingPreview(false))
+  }, [path])
+
+  return (
+    <div className="border border-gray-200 rounded-xl p-4">
+      <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+        {loadingPreview ? (
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-[#1a4a6b] rounded-full animate-spin" />
+        ) : previewUrl && isImage(path) ? (
+          <img src={previewUrl} alt={label} className="w-full h-full object-cover" />
+        ) : previewUrl ? (
+          <div className="text-center">
+            <FileText size={32} className="text-gray-400 mx-auto mb-2" />
+            <p className="text-xs text-gray-400">PDF Document</p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">Tidak ada file</p>
+        )}
+      </div>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600 font-medium">{label}</p>
+        {path && (
+          <button
+            onClick={() => downloadFile(path, label)}
+            className="text-[#1a4a6b] hover:underline text-xs flex items-center gap-1"
+          >
+            ↓ Unduh
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 const tabs = [
-  { id: 'identitas',   label: 'Identitas Diri',           icon: User          },
+  { id: 'identitas', label: 'Identitas Diri', icon: User },
   { id: 'kualifikasi', label: 'Kualifikasi & Sertifikasi', icon: GraduationCap },
-  { id: 'berkas',      label: 'Berkas Unggahan',           icon: FileText      },
+  { id: 'berkas', label: 'Berkas Unggahan', icon: FileText },
 ]
 
+
 export default function DataRegistrasi() {
-  const [list, setList]             = useState([])
-  const [selected, setSelected]     = useState(null)
-  const [activeTab, setActiveTab]   = useState('identitas')
-  const [pesan, setPesan]           = useState('')
-  const [loading, setLoading]       = useState(true)
+  const [list, setList] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [activeTab, setActiveTab] = useState('identitas')
+  const [pesan, setPesan] = useState('')
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [statusFilter, setStatusFilter] = useState('pending')
 
   // Popup tolak
   const [showTolakModal, setShowTolakModal] = useState(false)
-  const [catatanTolak, setCatatanTolak]     = useState('')
+  const [catatanTolak, setCatatanTolak] = useState('')
 
   const fetchList = () => {
     setLoading(true)
@@ -30,7 +74,7 @@ export default function DataRegistrasi() {
         if (data.length > 0 && !selected) setSelected(data[0])
         else if (data.length === 0) setSelected(null)
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }
 
@@ -57,7 +101,7 @@ export default function DataRegistrasi() {
     setSubmitting(true)
     try {
       await api.patch(`/admin/verifikasi/${selected.id_pendidik}`, {
-        status_verifikasi:  'ditolak',
+        status_verifikasi: 'ditolak',
         catatan_verifikasi: catatanTolak,
       })
       setShowTolakModal(false)
@@ -83,13 +127,13 @@ export default function DataRegistrasi() {
     }
   }
 
-  const initials = (nama) => nama?.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()
+  const initials = (nama) => nama?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
   const statusBadge = (status) => {
     const map = {
-      pending:  'bg-amber-100 text-amber-700',
-      aktif:    'bg-emerald-100 text-emerald-700',
-      ditolak:  'bg-red-100 text-red-600',
+      pending: 'bg-amber-100 text-amber-700',
+      aktif: 'bg-emerald-100 text-emerald-700',
+      ditolak: 'bg-red-100 text-red-600',
     }
     return map[status] || map.pending
   }
@@ -112,9 +156,9 @@ export default function DataRegistrasi() {
             </div>
             <div className="flex gap-1">
               {[
-                { key: 'pending',   label: 'Pending'   },
+                { key: 'pending', label: 'Pending' },
                 { key: 'disetujui', label: 'Disetujui' },
-                { key: 'ditolak',   label: 'Ditolak'   },
+                { key: 'ditolak', label: 'Ditolak' },
               ].map(s => (
                 <button key={s.key}
                   onClick={() => { setStatusFilter(s.key); setSelected(null) }}
@@ -171,7 +215,7 @@ export default function DataRegistrasi() {
                         {selected.status_akun === 'aktif' ? 'Disetujui' : selected.status_akun}
                       </span>
                       <span className="text-xs text-gray-400">
-                        Submitted: {new Date(selected.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })}
+                        Submitted: {new Date(selected.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                   </div>
@@ -210,19 +254,21 @@ export default function DataRegistrasi() {
                 {activeTab === 'identitas' && (
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: 'NIK',                  value: selected.nik                },
-                      { label: 'Email',                value: selected.email              },
-                      { label: 'No. HP',               value: selected.no_hp              },
-                      { label: 'Tempat Lahir',         value: selected.tempat_lahir       },
-                      { label: 'Tanggal Lahir',        value: selected.tanggal_lahir
+                      { label: 'NIK', value: selected.nik },
+                      { label: 'Email', value: selected.email },
+                      { label: 'No. HP', value: selected.no_hp },
+                      { label: 'Tempat Lahir', value: selected.tempat_lahir },
+                      {
+                        label: 'Tanggal Lahir', value: selected.tanggal_lahir
                           ? new Date(selected.tanggal_lahir).toLocaleDateString('id-ID')
-                          : '—' },
-                      { label: 'Jenis Kelamin',        value: selected.jenis_kelamin      },
-                      { label: 'Status Kepegawaian',   value: selected.status_kepegawaian },
-                      { label: 'Pendidikan Terakhir',  value: selected.pendidikan_terakhir},
-                      { label: 'Jabatan',              value: selected.jabatan            },
-                      { label: 'Bidang Ajar',          value: selected.bidang_ajar        },
-                      { label: 'Unit Kerja',           value: selected.unit_kerja         },
+                          : '—'
+                      },
+                      { label: 'Jenis Kelamin', value: selected.jenis_kelamin },
+                      { label: 'Status Kepegawaian', value: selected.status_kepegawaian },
+                      { label: 'Pendidikan Terakhir', value: selected.pendidikan_terakhir },
+                      { label: 'Jabatan', value: selected.jabatan },
+                      { label: 'Bidang Ajar', value: selected.bidang_ajar },
+                      { label: 'Unit Kerja', value: selected.unit_kerja },
                     ].map((item, i) => (
                       <div key={i} className="bg-gray-50 rounded-xl p-3">
                         <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{item.label}</p>
@@ -262,29 +308,15 @@ export default function DataRegistrasi() {
                 {activeTab === 'berkas' && (
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: 'KTP / Identitas',    key: 'data_identitas'   },
+                      { label: 'KTP / Identitas',      key: 'data_identitas'   },
                       { label: 'Ijazah / Kualifikasi', key: 'data_kualifikasi' },
-                      { label: 'Sertifikasi',         key: 'data_sertifikasi' },
+                      { label: 'Sertifikasi',          key: 'data_sertifikasi' },
                     ].map((doc, i) => (
-                      <div key={i} className="border border-gray-200 rounded-xl p-4">
-                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                          {selected.dokumen?.[doc.key] ? (
-                            <FileText size={32} className="text-gray-400" />
-                          ) : (
-                            <p className="text-xs text-gray-400">Tidak ada file</p>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-600 font-medium">{doc.label}</p>
-                          {selected.dokumen?.[doc.key] && (
-                            <a href={`http://localhost:8000/storage/${selected.dokumen[doc.key]}`}
-                              target="_blank" rel="noreferrer"
-                              className="text-[#1a4a6b] hover:underline text-xs">
-                              ↓ Unduh
-                            </a>
-                          )}
-                        </div>
-                      </div>
+                      <DokumenPreview
+                        key={i}
+                        path={selected.dokumen?.[doc.key]}
+                        label={doc.label}
+                      />
                     ))}
                   </div>
                 )}

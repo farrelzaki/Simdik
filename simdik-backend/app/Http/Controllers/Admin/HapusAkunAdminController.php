@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers\Admin;
 
+use App\Services\NotificationService;
 use App\Http\Controllers\Controller;
 use App\Models\HapusAkunRequest;
 use App\Models\Pendidik;
@@ -41,6 +42,16 @@ class HapusAkunAdminController extends Controller
         // Kalau disetujui, hapus akun pendidik
         if ($request->status === 'disetujui') {
             Pendidik::where('id_pendidik', $hapusRequest->id_pendidik)->delete();
+        }
+
+        if ($request->status === 'ditolak') {
+            NotificationService::pendidik(
+                $hapusRequest->id_pendidik,
+                'Request Hapus Akun Ditolak',
+                'Request penghapusan akun Anda tidak disetujui.' . ($request->catatan ? " Catatan: {$request->catatan}" : ''),
+                'error',
+                null
+            );
         }
 
         return response()->json(['message' => 'Request berhasil diproses']);

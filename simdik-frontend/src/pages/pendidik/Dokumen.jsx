@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Download, Upload, CheckCircle, Clock, XCircle, AlertCircle, Plus } from 'lucide-react'
 import api from '../../lib/axios'
+import { downloadFile } from '../../lib/fileHelper'
 
 const DOKUMEN_UTAMA = [
   { key: 'data_identitas',   label: 'KTP / Identitas',      icon: '🪪', required: true  },
@@ -159,11 +160,10 @@ export default function PendidikDokumen() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           {ada && (
-                            <a href={`http://localhost:8000/storage/${dokumen[doc.key]}`}
-                              target="_blank" rel="noreferrer"
+                            <button onClick={() => downloadFile(dokumen[doc.key], doc.label)}
                               className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
                               <Download size={12} /> Unduh
-                            </a>
+                            </button>
                           )}
                           {!pending && (
                             <label className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
@@ -236,7 +236,8 @@ export default function PendidikDokumen() {
 
             {/* List Sertifikasi */}
             <div className="divide-y divide-gray-50">
-              {dokumen?.data_sertifikasi ? (
+              {/* Sertifikasi aktif yang sudah disetujui */}
+              {dokumen?.data_sertifikasi && (
                 <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">🏆</span>
@@ -248,11 +249,10 @@ export default function PendidikDokumen() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <a href={`http://localhost:8000/storage/${dokumen.data_sertifikasi}`}
-                      target="_blank" rel="noreferrer"
+                    <button onClick={() => downloadFile(dokumen.data_sertifikasi, 'Sertifikasi')}
                       className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
                       <Download size={12} /> Unduh
-                    </a>
+                    </button>
                     {!getPendingForDok('data_sertifikasi') && (
                       <label className="flex items-center gap-1 px-3 py-1.5 bg-[#054a5c] text-white rounded-lg text-xs cursor-pointer hover:bg-[#033a47]">
                         <Upload size={12} /> Update
@@ -262,28 +262,34 @@ export default function PendidikDokumen() {
                     )}
                   </div>
                 </div>
-              ) : (
-                perubahan.filter(p => p.data_baru?.data_sertifikasi).length === 0 && (
-                  <div className="px-5 py-8 text-center text-gray-400 text-sm">
-                    Belum ada sertifikasi. Klik "Tambah Sertifikasi" untuk mengunggah.
-                  </div>
-                )
               )}
 
-              {/* Request pending untuk sertifikasi */}
-              {perubahan.filter(p => p.data_baru?.data_sertifikasi).map(p => (
-                <div key={p.id_perubahan} className="flex items-center justify-between px-5 py-4 bg-amber-50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">🏆</span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">Sertifikasi Baru</p>
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                        <Clock size={10} /> Menunggu Verifikasi
-                      </span>
+              {/* Hanya tampilkan SATU pending sertifikasi terbaru saja */}
+              {(() => {
+                const pendingSert = perubahan
+                  .filter(p => p.data_baru?.data_sertifikasi && p.status === 'pending')
+                  .slice(0, 1) // ambil hanya yang terbaru
+                return pendingSert.map(p => (
+                  <div key={p.id_perubahan} className="flex items-center justify-between px-5 py-4 bg-amber-50">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🏆</span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">Sertifikasi Baru</p>
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                          <Clock size={10} /> Menunggu Verifikasi
+                        </span>
+                      </div>
                     </div>
                   </div>
+                ))
+              })()}
+
+              {/* Kalau tidak ada sertifikasi sama sekali */}
+              {!dokumen?.data_sertifikasi && perubahan.filter(p => p.data_baru?.data_sertifikasi && p.status === 'pending').length === 0 && (
+                <div className="px-5 py-8 text-center text-gray-400 text-sm">
+                  Belum ada sertifikasi. Klik "Tambah Sertifikasi" untuk mengunggah.
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

@@ -3,37 +3,37 @@ import { Bell, Filter, CheckCheck, AlertCircle, FileText, RefreshCw, Megaphone, 
 import api from '../../lib/axios'
 
 const TIPE_ICON = {
-  error:   { icon: AlertCircle, bg: 'bg-red-100',     text: 'text-red-500'    },
-  success: { icon: FileText,    bg: 'bg-blue-100',     text: 'text-blue-500'   },
-  info:    { icon: RefreshCw,   bg: 'bg-gray-100',     text: 'text-gray-500'   },
-  warning: { icon: Briefcase,   bg: 'bg-amber-100',    text: 'text-amber-500'  },
-  promo:   { icon: Megaphone,   bg: 'bg-purple-100',   text: 'text-purple-500' },
+  error: { icon: AlertCircle, bg: 'bg-red-100', text: 'text-red-500' },
+  success: { icon: FileText, bg: 'bg-blue-100', text: 'text-blue-500' },
+  info: { icon: RefreshCw, bg: 'bg-gray-100', text: 'text-gray-500' },
+  warning: { icon: Briefcase, bg: 'bg-amber-100', text: 'text-amber-500' },
+  promo: { icon: Megaphone, bg: 'bg-purple-100', text: 'text-purple-500' },
 }
 
 const formatWaktu = (dateStr) => {
-  const now  = new Date()
+  const now = new Date()
   const date = new Date(dateStr)
   const diff = now - date
   const mins = Math.floor(diff / 60000)
-  const hrs  = Math.floor(diff / 3600000)
+  const hrs = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (mins < 60)  return `${mins} menit lalu`
-  if (hrs < 24)   return `${hrs < 10 ? '0' + hrs : hrs}:${String(date.getMinutes()).padStart(2,'0')} AM`
-  if (days === 1) return `Kemarin, ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
+  if (mins < 60) return `${mins} menit lalu`
+  if (hrs < 24) return `${hrs < 10 ? '0' + hrs : hrs}:${String(date.getMinutes()).padStart(2, '0')} AM`
+  if (days === 1) return `Kemarin, ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
   return `${days} Hari Lalu`
 }
 
 const groupByWaktu = (items) => {
   const groups = { 'HARI INI': [], 'KEMARIN': [], 'MINGGU LALU': [] }
-  const now    = new Date()
+  const now = new Date()
 
   items.forEach(item => {
     const date = new Date(item.created_at)
     const diff = Math.floor((now - date) / 86400000)
-    if (diff === 0)      groups['HARI INI'].push(item)
+    if (diff === 0) groups['HARI INI'].push(item)
     else if (diff === 1) groups['KEMARIN'].push(item)
-    else                 groups['MINGGU LALU'].push(item)
+    else groups['MINGGU LALU'].push(item)
   })
 
   return groups
@@ -41,14 +41,14 @@ const groupByWaktu = (items) => {
 
 export default function Notifikasi() {
   const [notifikasi, setNotifikasi] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [marking, setMarking]       = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [marking, setMarking] = useState(false)
 
   const fetchNotifikasi = () => {
     setLoading(true)
     api.get('/admin/notifikasi')
-      .then(res => setNotifikasi(res.data.data?.data || []))
-      .catch(() => {})
+      .then(res => setNotifikasi(res.data.data?.data || res.data.data || []))
+      .catch(() => { })
       .finally(() => setLoading(false))
   }
 
@@ -71,7 +71,7 @@ export default function Notifikasi() {
       setNotifikasi(prev => prev.map(n =>
         n.id_notifikasi === id ? { ...n, dibaca: true } : n
       ))
-    } catch {}
+    } catch { }
   }
 
   const groups = groupByWaktu(notifikasi)
@@ -113,8 +113,8 @@ export default function Notifikasi() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{group}</p>
               <div className="space-y-2">
                 {items.map(item => {
-                  const tipe   = TIPE_ICON[item.tipe] || TIPE_ICON.info
-                  const Icon   = tipe.icon
+                  const tipe = TIPE_ICON[item.tipe] || TIPE_ICON.info
+                  const Icon = tipe.icon
                   return (
                     <div
                       key={item.id_notifikasi}

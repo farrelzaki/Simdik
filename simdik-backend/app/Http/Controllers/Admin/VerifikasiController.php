@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\NotificationService;
 use App\Http\Controllers\Controller;
 use App\Mail\PesanPerbaikanData;
 use App\Mail\VerifikasiDisetujui;
@@ -63,6 +64,24 @@ class VerifikasiController extends Controller
         $statusAkun = $request->status_verifikasi === 'disetujui' ? 'aktif' : 'ditolak';
         $pendidik->update(['status_akun' => $statusAkun]);
 
+        if ($request->status_verifikasi === 'disetujui') {
+            NotificationService::pendidik(
+                $pendidik->id_pendidik,
+                'Registrasi Disetujui',
+                'Selamat! Akun Anda telah berhasil diverifikasi. Anda sekarang dapat login.',
+                'success',
+                '/pendidik/profil'
+            );
+        } else {
+            NotificationService::pendidik(
+                $pendidik->id_pendidik,
+                'Registrasi Ditolak',
+                'Maaf, pendaftaran Anda ditolak.' . ($request->catatan_verifikasi ? " Catatan: {$request->catatan_verifikasi}" : ''),
+                'error',
+                null
+            );
+        }
+
         // Kirim email notifikasi
         if ($request->status_verifikasi === 'disetujui') {
             Mail::to($pendidik->email)->send(new VerifikasiDisetujui($pendidik));
@@ -92,6 +111,13 @@ class VerifikasiController extends Controller
         $request->validate([
             'pesan' => 'required|string',
         ]);
+        NotificationService::pendidik(
+            $pendidik->id_pendidik,
+            'Pesan dari Admin',
+            $request->pesan,
+            'warning',
+            '/pendidik/dokumen'
+        );
 
         $pendidik = Pendidik::findOrFail($id);
 

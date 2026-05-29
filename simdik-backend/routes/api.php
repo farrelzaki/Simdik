@@ -16,6 +16,43 @@ use App\Http\Controllers\Pendidik\NotifikasiPendidikController;
 use App\Http\Controllers\Pendidik\HapusAkunController;
 use App\Http\Controllers\Admin\HapusAkunAdminController;
 
+Route::get('/file/{path}', function ($path) {
+    $base64  = str_replace(['-', '_'], ['+', '/'], $path);
+    $padding = strlen($base64) % 4;
+    if ($padding) $base64 .= str_repeat('=', 4 - $padding);
+
+    $decoded = base64_decode($base64);
+
+    // Cari file di semua kemungkinan lokasi storage
+    $paths = [
+        storage_path('app/private/' . $decoded),
+        storage_path('app/' . $decoded),
+        storage_path('app/public/' . $decoded),
+    ];
+
+    $fullPath = null;
+    foreach ($paths as $p) {
+        if (file_exists($p)) {
+            $fullPath = $p;
+            break;
+        }
+    }
+
+    if (!$fullPath) {
+        \Illuminate\Support\Facades\Log::warning("File tidak ditemukan: {$decoded}", [
+            'searched' => $paths,
+        ]);
+        return response()->json(['message' => 'File tidak ditemukan', 'path' => $decoded], 404);
+    }
+
+    $mimeType = mime_content_type($fullPath);
+    return response()->file($fullPath, [
+        'Content-Type'        => $mimeType,
+        'Content-Disposition' => 'inline',
+        'Cache-Control'       => 'no-cache',
+    ]);
+})->where('path', '.*')->middleware('auth:sanctum');
+
 // ─── Public ───────────────────────────────────────────
 Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -43,6 +80,8 @@ Route::middleware(['auth:sanctum', 'pendidik_aktif'])->prefix('pendidik')->group
 
     // Hapus akun
     Route::post('/hapus-akun',        [HapusAkunController::class, 'ajukan']);
+
+
 });
 
 // ─── Admin ────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Pendidik;
 
+use App\Services\NotificationService;
 use App\Http\Controllers\Controller;
 use App\Models\PerubahanProfil;
 use App\Models\Pendidik;
@@ -70,6 +71,13 @@ class ProfilPerubahanController extends Controller
             'status'      => 'pending',
         ]);
 
+        NotificationService::semuaAdmin(
+            "Request Perubahan Profil: {$pendidik->nama}",
+            "{$pendidik->nama} mengajukan perubahan data profil.",
+            'info',
+            '/admin/perubahan-profil'
+        );
+
         return response()->json([
             'message'   => 'Request perubahan profil berhasil diajukan, menunggu verifikasi admin',
             'data'      => $perubahan,
@@ -133,6 +141,13 @@ class ProfilPerubahanController extends Controller
             'data_baru'   => [$tipe => $path],
             'status'      => 'pending',
         ]);
+
+        NotificationService::semuaAdmin(
+            "Request Update Dokumen: {$pendidik->nama}",
+            "{$pendidik->nama} mengajukan update dokumen.",
+            'info',
+            '/admin/perubahan-profil'
+        );
 
         return response()->json([
             'message' => 'Request update dokumen berhasil diajukan, menunggu verifikasi admin',

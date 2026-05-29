@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, ChevronRight, X, User, FileText } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, ChevronRight, X, User, FileText, Download } from 'lucide-react'
 import api from '../../lib/axios'
+import { downloadFile, previewFile, isImage } from '../../lib/fileHelper'
 
 const STATUS_BADGE = {
   pending:   { cls: 'bg-amber-100 text-amber-700',    label: 'Pending'    },
@@ -184,14 +185,27 @@ export default function PerubahanProfil() {
                         <td className="px-4 py-3 text-sm font-medium text-gray-700">
                           {FIELD_LABELS[key] || key}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 line-through">
-                          {selected.data_lama?.[key] || '—'}
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {selected.tipe === 'dokumen' && selected.data_lama?.[key] ? (
+                            <button onClick={() => downloadFile(selected.data_lama[key], `${FIELD_LABELS[key] || key}_lama`)}
+                              className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs hover:bg-gray-200">
+                              <Download size={11} /> Unduh file lama
+                            </button>
+                          ) : (
+                            <span className="line-through">{selected.data_lama?.[key] || '—'}</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-emerald-700 font-medium">
                           {selected.tipe === 'dokumen' ? (
-                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">
-                              File baru diunggah
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">
+                                File baru diunggah
+                              </span>
+                              <button onClick={() => downloadFile(newVal, FIELD_LABELS[key] || key)}
+                                className="inline-flex items-center gap-1 bg-[#1a4a6b] text-white px-2.5 py-1 rounded text-xs hover:bg-[#15395a]">
+                                <Download size={11} /> Unduh
+                              </button>
+                            </div>
                           ) : newVal}
                         </td>
                       </tr>
