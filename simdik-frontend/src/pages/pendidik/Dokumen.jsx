@@ -27,6 +27,7 @@ export default function PendidikDokumen() {
   const [fileSert, setFileSert]             = useState(null)
   const [uploadingSert, setUploadingSert]   = useState(false)
   const intervalRef = useRef(null)
+  const prevStatusRef = useRef({})
 
   const fetchData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true)
@@ -37,9 +38,21 @@ export default function PendidikDokumen() {
       ])
       setProfil(profilRes.data.data)
       const perubahanDokumen = perubahanRes.data.data?.filter(p => p.tipe === 'dokumen') || []
+      
+      // Deteksi jika ada yang baru disetujui sejak fetch terakhir
+      perubahanDokumen.forEach(p => {
+        const prev = prevStatusRef.current[p.id_perubahan]
+        if (prev === 'pending' && p.status === 'disetujui') {
+          setSuccess('Dokumen Anda telah disetujui oleh admin!')
+        }
+      })
+      perubahanDokumen.forEach(p => {
+        prevStatusRef.current[p.id_perubahan] = p.status
+      })
+      
       setPerubahan(perubahanDokumen)
     } catch (e) {
-      // silent – data lama tetap tampil
+      console.error('Gagal fetch data dokumen:', e)  // ← jangan silent
     } finally {
       setLoading(false)
       if (isManual) setRefreshing(false)
@@ -49,8 +62,8 @@ export default function PendidikDokumen() {
   useEffect(() => {
     fetchData()
 
-    // Auto-refresh setiap 10 detik (sehingga dokumen muncul otomatis setelah admin approve)
-    intervalRef.current = setInterval(() => fetchData(), 10000)
+    // Auto-refresh setiap 5 detik (sehingga dokumen muncul otomatis setelah admin approve)
+    intervalRef.current = setInterval(() => fetchData(), 5000)
 
     // Refresh juga ketika user kembali ke tab/window
     const onFocus    = () => fetchData()
@@ -78,7 +91,7 @@ export default function PendidikDokumen() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setSuccess('Request update dokumen berhasil diajukan, menunggu verifikasi admin')
-      fetchData()
+      await fetchData()
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal mengajukan update dokumen')
     } finally {
@@ -99,7 +112,7 @@ export default function PendidikDokumen() {
       setSuccess('Sertifikasi berhasil diajukan, menunggu verifikasi admin')
       setShowTambahSert(false)
       setFileSert(null)
-      fetchData()
+      await fetchData()
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal mengunggah sertifikasi')
     } finally {

@@ -53,62 +53,80 @@ class PerubahanProfilController extends Controller
             return response()->json(['message' => 'Request ini sudah diproses'], 422);
         }
 
-        $perubahan->update([
-            'status'         => $request->status,
-            'catatan'        => $request->catatan,
-            'id_tata_usaha'  => $request->user()->id_tata_usaha,
-            'tanggal_review' => now(),
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $perubahan) {
+            $perubahan->update([
+                'status'         => $request->status,
+                'catatan'        => $request->catatan,
+                'id_tata_usaha'  => $request->user()->id_tata_usaha,
+                'tanggal_review' => now(),
+            ]);
 
-        if ($request->status === 'disetujui') {
-            if ($perubahan->tipe === 'profil') {
-                $perubahan->pendidik->update($perubahan->data_baru);
+            if ($request->status === 'disetujui') {
+                if ($perubahan->tipe === 'profil') {
+                    $perubahan->pendidik->update($perubahan->data_baru);
 
+                    NotificationService::pendidik(
+                        $perubahan->id_pendidik,
+                        'Perubahan Profil Disetujui',
+                        'Perubahan data profil Anda telah disetujui dan diterapkan.',
+                        'success',
+                        '/pendidik/profil'
+                    );
+
+                } elseif ($perubahan->tipe === 'dokumen') {
+                    $updateData = $perubahan->data_baru;
+                    if (is_string($updateData)) {
+                        $updateData = json_decode($updateData, true);
+                    }
+
+                    $dokumen = Dokumen::firstOrCreate(
+                        ['id_pendidik' => $perubahan->id_pendidik],
+                        ['status_kelengkapan' => 'tidak_lengkap']
+                    );
+
+                    \Illuminate\Support\Facades\Log::info('Update dokumen disetujui', [
+                        'id_perubahan' => $perubahan->id_perubahan,
+                        'id_pendidik'  => $perubahan->id_pendidik,
+                        'id_dokumen'   => $dokumen->id_dokumen,
+                        'update_data'  => $updateData,
+                    ]);
+
+                    $tipe = key($updateData);
+                    // Hapus file lama jika ada
+                    if ($perubahan->data_lama && $oldPath = $perubahan->data_lama[$tipe] ?? null) {
+                        \Illuminate\Support\Facades\Storage::delete($oldPath);
+                    }
+
+                    // Pindahkan file ke lokasi permanen
+                    foreach ($updateData as $field => $path) {
+                        if (str_starts_with($path, 'dokumen_perubahan/')) {
+                            $newPath = str_replace('dokumen_perubahan/', 'dokumen/', $path);
+                            \Illuminate\Support\Facades\Storage::move($path, $newPath);
+                            $updateData[$field] = $newPath;
+                        }
+                    }
+
+                    $dokumen->fill($updateData)->save();
+
+                    NotificationService::pendidik(
+                        $perubahan->id_pendidik,
+                        'Update Dokumen Disetujui',
+                        'Dokumen Anda telah berhasil diperbarui.',
+                        'success',
+                        '/pendidik/dokumen'
+                    );
+                }
+            } else {
+                $jenis = $perubahan->tipe === 'profil' ? 'Perubahan Profil' : 'Update Dokumen';
                 NotificationService::pendidik(
                     $perubahan->id_pendidik,
-                    'Perubahan Profil Disetujui',
-                    'Perubahan data profil Anda telah disetujui dan diterapkan.',
-                    'success',
-                    '/pendidik/profil'
-                );
-
-            } elseif ($perubahan->tipe === 'dokumen') {
-                $dokumen = Dokumen::firstOrCreate(
-                    ['id_pendidik' => $perubahan->id_pendidik],
-                    ['status_kelengkapan' => 'belum_lengkap']
-                );
-
-                // Langsung update kolom dokumen dengan path dari data_baru
-                // File sudah dipastikan ada karena berhasil diunggah oleh pendidik
-                $updateData = $perubahan->data_baru;
-
-                \Illuminate\Support\Facades\Log::info('Update dokumen disetujui', [
-                    'id_perubahan' => $perubahan->id_perubahan,
-                    'id_pendidik'  => $perubahan->id_pendidik,
-                    'id_dokumen'   => $dokumen->id_dokumen,
-                    'update_data'  => $updateData,
-                ]);
-
-                $dokumen->fill($updateData)->save();
-
-                NotificationService::pendidik(
-                    $perubahan->id_pendidik,
-                    'Update Dokumen Disetujui',
-                    'Dokumen Anda telah berhasil diperbarui.',
-                    'success',
-                    '/pendidik/dokumen'
+                    "{$jenis} Ditolak",
+                    "Request {$jenis} Anda ditolak." . ($request->catatan ? " Catatan: {$request->catatan}" : ''),
+                    'error',
+                    $perubahan->tipe === 'dokumen' ? '/pendidik/dokumen' : '/pendidik/profil'
                 );
             }
-        } else {
-            $jenis = $perubahan->tipe === 'profil' ? 'Perubahan Profil' : 'Update Dokumen';
-            NotificationService::pendidik(
-                $perubahan->id_pendidik,
-                "{$jenis} Ditolak",
-                "Request {$jenis} Anda ditolak." . ($request->catatan ? " Catatan: {$request->catatan}" : ''),
-                'error',
-                $perubahan->tipe === 'dokumen' ? '/pendidik/dokumen' : '/pendidik/profil'
-            );
-        }
+        });
 
         return response()->json(['message' => 'Request berhasil diproses']);
     }

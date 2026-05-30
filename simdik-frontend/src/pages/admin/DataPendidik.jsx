@@ -68,6 +68,18 @@ export default function DataPendidik() {
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting]   = useState(false)
 
+  const handleOpenDetail = async (row) => {
+    setActiveTab('identitas')
+    setShowDetail(true)
+    try {
+      const res = await api.get(`/admin/pendidik/${row.id_pendidik}`)
+      setSelected(res.data.data)
+    } catch {
+      // Handle error if needed, for now just use row data
+      setSelected(row)
+    }
+  }
+
   const units = ['Semua', 'Unit SD', 'Unit SMP', 'Unit SMA', 'Unit SMK', 'Yayasan/Pusat']
 
   const fetchData = () => {
@@ -288,7 +300,7 @@ export default function DataPendidik() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => { setSelected(row); setActiveTab('identitas'); setShowDetail(true) }}
+                        onClick={() => handleOpenDetail(row)}
                         className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
                         title="Lihat Detail"
                       >

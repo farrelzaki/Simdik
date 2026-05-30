@@ -134,6 +134,16 @@ class ProfilPerubahanController extends Controller
 
         $path = $request->file('file')->store("dokumen_perubahan/{$pendidik->id_pendidik}", 'local');
 
+        $existingPending = PerubahanProfil::where('id_pendidik', $pendidik->id_pendidik)
+            ->where('tipe', 'dokumen')
+            ->where('status', 'pending')
+            ->whereNotNull('data_baru->' . $tipe)
+            ->exists();
+
+        if ($existingPending) {
+            return response()->json(['message' => 'Masih ada request update dokumen ini yang menunggu verifikasi'], 422);
+        }
+
         $perubahan = PerubahanProfil::create([
             'id_pendidik' => $pendidik->id_pendidik,
             'tipe'        => 'dokumen',
