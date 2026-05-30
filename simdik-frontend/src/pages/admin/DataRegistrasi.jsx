@@ -56,7 +56,6 @@ export default function DataRegistrasi() {
   const [list, setList] = useState([])
   const [selected, setSelected] = useState(null)
   const [activeTab, setActiveTab] = useState('identitas')
-  const [pesan, setPesan] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [statusFilter, setStatusFilter] = useState('pending')
@@ -114,18 +113,7 @@ export default function DataRegistrasi() {
     }
   }
 
-  const handleKirimPesan = async () => {
-    if (!selected || !pesan.trim()) return
-    setSubmitting(true)
-    try {
-      await api.post(`/admin/registrasi/${selected.id_pendidik}/kirim-pesan`, { pesan })
-      setPesan('')
-      alert('Pesan berhasil dikirim ke email pendaftar')
-    } catch {
-    } finally {
-      setSubmitting(false)
-    }
-  }
+
 
   const initials = (nama) => nama?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
@@ -323,28 +311,7 @@ export default function DataRegistrasi() {
               </div>
             </div>
 
-            {/* Revision Feedback */}
-            {selected.status_akun === 'pending' && (
-              <div className="bg-white rounded-2xl shadow-sm p-5">
-                <h4 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                  <FileText size={16} /> Revision Feedback
-                </h4>
-                <p className="text-xs text-gray-400 mb-3">Pesan ini akan dikirim otomatis ke email pendaftar.</p>
-                <textarea value={pesan} onChange={e => setPesan(e.target.value)} rows={3}
-                  placeholder="e.g. Please re-upload a clearer scan of the Family Card..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4a6b]/20 resize-none" />
-                <div className="flex items-center justify-between mt-3">
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    Notify via Email
-                  </label>
-                  <button onClick={handleKirimPesan} disabled={submitting || !pesan.trim()}
-                    className="flex items-center gap-2 bg-[#1a4a6b] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#15395a] disabled:opacity-40">
-                    <Send size={14} /> Send Revision Request
-                  </button>
-                </div>
-              </div>
-            )}
+
 
             {/* Catatan verifikasi jika sudah diproses */}
             {selected.verifikasi?.catatan_verifikasi && (

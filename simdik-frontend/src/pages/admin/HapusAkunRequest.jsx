@@ -7,7 +7,8 @@ export default function HapusAkunRequest() {
   const [selected, setSelected]     = useState(null)
   const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [catatan, setCatatan]       = useState('')
+  const [catatanTolak, setCatatanTolak] = useState('')
+  const [showTolakModal, setShowTolakModal] = useState(false)
   const [statusFilter, setStatusFilter] = useState('pending')
 
   const fetchList = () => {
@@ -29,11 +30,12 @@ export default function HapusAkunRequest() {
     setSubmitting(true)
     try {
       await api.patch(`/admin/hapus-akun-request/${selected.id_request}`, {
-        status, catatan,
+        status, catatan: status === 'ditolak' ? catatanTolak : '',
       })
       fetchList()
       setSelected(null)
-      setCatatan('')
+      setCatatanTolak('')
+      setShowTolakModal(false)
     } catch {
     } finally {
       setSubmitting(false)
@@ -75,7 +77,7 @@ export default function HapusAkunRequest() {
               <p className="text-center text-sm text-gray-400 py-8">Tidak ada request</p>
             ) : list.map(item => (
               <button key={item.id_request}
-                onClick={() => { setSelected(item); setCatatan('') }}
+                onClick={() => { setSelected(item); setCatatanTolak('') }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors
                   ${selected?.id_request === item.id_request ? 'bg-[#1a4a6b]/5 border-l-2 border-[#1a4a6b]' : 'hover:bg-gray-50'}`}>
                 <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-xs font-bold flex-shrink-0">
@@ -108,7 +110,7 @@ export default function HapusAkunRequest() {
                 </div>
                 {selected.status === 'pending' && (
                   <div className="flex gap-2">
-                    <button onClick={() => handleReview('ditolak')} disabled={submitting}
+                    <button onClick={() => { setShowTolakModal(true); setCatatanTolak('') }} disabled={submitting}
                       className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 disabled:opacity-40">
                       <XCircle size={15} /> Tolak
                     </button>
@@ -128,14 +130,7 @@ export default function HapusAkunRequest() {
               </p>
             </div>
 
-            {selected.status === 'pending' && (
-              <div className="bg-white rounded-2xl shadow-sm p-5">
-                <h4 className="font-semibold text-gray-800 mb-3">Catatan (opsional)</h4>
-                <textarea value={catatan} onChange={e => setCatatan(e.target.value)}
-                  rows={3} placeholder="Tulis catatan untuk pendidik..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4a6b]/20 resize-none" />
-              </div>
-            )}
+
           </div>
         ) : (
           <div className="flex-1 bg-white rounded-2xl shadow-sm flex items-center justify-center">
@@ -143,6 +138,46 @@ export default function HapusAkunRequest() {
           </div>
         )}
       </div>
+
+      {/* Modal Tolak */}
+      {showTolakModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <XCircle size={18} className="text-red-500" />
+                </div>
+                <h3 className="font-bold text-gray-800">Tolak Permintaan</h3>
+              </div>
+              <button onClick={() => setShowTolakModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-4">
+              Berikan catatan alasan penolakan untuk <strong>{selected?.pendidik?.nama}</strong>.
+              Catatan ini akan dikirim ke pendidik.
+            </p>
+
+            <textarea value={catatanTolak} onChange={e => setCatatanTolak(e.target.value)}
+              rows={4}
+              placeholder="Contoh: Permintaan tidak dapat diproses saat ini karena data masih terikat dengan..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none mb-4" />
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowTolakModal(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50">
+                Batal
+              </button>
+              <button onClick={() => handleReview('ditolak')} disabled={submitting}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-60">
+                {submitting ? 'Memproses...' : 'Konfirmasi Tolak'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

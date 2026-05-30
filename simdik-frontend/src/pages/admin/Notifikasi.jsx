@@ -43,11 +43,16 @@ export default function Notifikasi() {
   const [notifikasi, setNotifikasi] = useState([])
   const [loading, setLoading] = useState(true)
   const [marking, setMarking] = useState(false)
+  const [filterMode, setFilterMode] = useState('semua')
+  const [showFilter, setShowFilter] = useState(false)
 
   const fetchNotifikasi = () => {
     setLoading(true)
     api.get('/admin/notifikasi')
-      .then(res => setNotifikasi(res.data.data?.data || res.data.data || []))
+      .then(res => {
+        setNotifikasi(res.data.data?.data || res.data.data || [])
+        window.dispatchEvent(new CustomEvent('updateNotifAdmin', { detail: res.data.belum_dibaca || 0 }))
+      })
       .catch(() => { })
       .finally(() => setLoading(false))
   }
@@ -58,7 +63,11 @@ export default function Notifikasi() {
     setMarking(true)
     try {
       await api.patch('/admin/notifikasi/baca-semua')
-      fetchNotifikasi()
+      setNotifikasi(prev => {
+        const next = prev.map(n => ({ ...n, dibaca: true }))
+        window.dispatchEvent(new CustomEvent('updateNotifAdmin', { detail: 0 }))
+        return next
+      })
     } catch {
     } finally {
       setMarking(false)
@@ -68,13 +77,22 @@ export default function Notifikasi() {
   const tandaiDibaca = async (id) => {
     try {
       await api.patch(`/admin/notifikasi/${id}/baca`)
-      setNotifikasi(prev => prev.map(n =>
-        n.id_notifikasi === id ? { ...n, dibaca: true } : n
-      ))
+      setNotifikasi(prev => {
+        const next = prev.map(n => n.id_notifikasi === id ? { ...n, dibaca: true } : n)
+        const unreadCount = next.filter(n => !n.dibaca).length
+        window.dispatchEvent(new CustomEvent('updateNotifAdmin', { detail: unreadCount }))
+        return next
+      })
     } catch { }
   }
 
-  const groups = groupByWaktu(notifikasi)
+  const filteredNotifikasi = notifikasi.filter(n => {
+    if (filterMode === 'belum_dibaca') return !n.dibaca
+    if (filterMode === 'sudah_dibaca') return n.dibaca
+    return true
+  })
+
+  const groups = groupByWaktu(filteredNotifikasi)
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -85,9 +103,32 @@ export default function Notifikasi() {
           <p className="text-sm text-gray-400 mt-1">Pantau pembaruan dokumen dan aktivitas sistem Anda</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
-            <Filter size={14} /> Filter
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowFilter(!showFilter)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-sm transition-colors ${
+                filterMode !== 'semua' 
+                ? 'border-[#1a4a6b] text-[#1a4a6b] bg-[#1a4a6b]/5' 
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+              <Filter size={14} /> Filter
+            </button>
+            
+            {showFilter && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl p-2 z-20">
+                {['semua', 'belum_dibaca', 'sudah_dibaca'].map(mode => (
+                  <button 
+                    key={mode}
+                    onClick={() => { setFilterMode(mode); setShowFilter(false) }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      filterMode === mode ? 'bg-[#1a4a6b]/10 text-[#1a4a6b] font-medium' : 'text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {mode === 'semua' ? 'Semua Notifikasi' : mode === 'belum_dibaca' ? 'Belum Dibaca' : 'Sudah Dibaca'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             onClick={tandaiSemuaDibaca}
             disabled={marking}

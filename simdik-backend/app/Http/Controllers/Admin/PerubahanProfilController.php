@@ -73,47 +73,23 @@ class PerubahanProfilController extends Controller
                 );
 
             } elseif ($perubahan->tipe === 'dokumen') {
-                $dokumen = Dokumen::where('id_pendidik', $perubahan->id_pendidik)->first();
+                $dokumen = Dokumen::firstOrCreate(
+                    ['id_pendidik' => $perubahan->id_pendidik],
+                    ['status_kelengkapan' => 'belum_lengkap']
+                );
 
-                // Buat record dokumen jika belum ada
-                if (!$dokumen) {
-                    $dokumen = Dokumen::create([
-                        'id_pendidik'        => $perubahan->id_pendidik,
-                        'status_kelengkapan' => 'belum_lengkap',
-                    ]);
-                }
+                // Langsung update kolom dokumen dengan path dari data_baru
+                // File sudah dipastikan ada karena berhasil diunggah oleh pendidik
+                $updateData = $perubahan->data_baru;
 
-                $updateData = [];
+                \Illuminate\Support\Facades\Log::info('Update dokumen disetujui', [
+                    'id_perubahan' => $perubahan->id_perubahan,
+                    'id_pendidik'  => $perubahan->id_pendidik,
+                    'id_dokumen'   => $dokumen->id_dokumen,
+                    'update_data'  => $updateData,
+                ]);
 
-                foreach ($perubahan->data_baru as $field => $pathSumber) {
-                    $ext      = pathinfo($pathSumber, PATHINFO_EXTENSION);
-                    $pathBaru = "dokumen/{$perubahan->id_pendidik}/{$field}_" . time() . ".{$ext}";
-
-                    // Pastikan folder tujuan ada
-                    $folderTujuan = "dokumen/{$perubahan->id_pendidik}";
-                    if (!\Illuminate\Support\Facades\Storage::exists($folderTujuan)) {
-                        \Illuminate\Support\Facades\Storage::makeDirectory($folderTujuan);
-                    }
-
-                    if (\Illuminate\Support\Facades\Storage::exists($pathSumber)) {
-                        // Copy dulu baru delete untuk keamanan
-                        \Illuminate\Support\Facades\Storage::copy($pathSumber, $pathBaru);
-                        \Illuminate\Support\Facades\Storage::delete($pathSumber);
-                        $updateData[$field] = $pathBaru;
-                    } else {
-                        // File source tidak ditemukan, log warning
-                        // Jangan update path di DB agar path lama yang valid tetap dipakai
-                        \Illuminate\Support\Facades\Log::warning("File perubahan tidak ditemukan saat verifikasi: {$pathSumber}", [
-                            'id_perubahan' => $perubahan->id_perubahan,
-                            'id_pendidik'  => $perubahan->id_pendidik,
-                            'field'        => $field,
-                        ]);
-                    }
-                }
-
-                if (!empty($updateData)) {
-                    $dokumen->update($updateData);
-                }
+                $dokumen->fill($updateData)->save();
 
                 NotificationService::pendidik(
                     $perubahan->id_pendidik,

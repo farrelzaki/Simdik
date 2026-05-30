@@ -8,10 +8,25 @@ export default function Topbar() {
   const [belumDibaca, setBelumDibaca] = useState(0)
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
-  useEffect(() => {
+  const fetchCount = () => {
     api.get('/admin/notifikasi').then(res => {
       setBelumDibaca(res.data.belum_dibaca || 0)
     }).catch(() => {})
+  }
+
+  useEffect(() => {
+    fetchCount()
+    
+    const handleUpdate = (e) => {
+      if (e.detail !== undefined) {
+        setBelumDibaca(e.detail)
+      } else {
+        fetchCount()
+      }
+    }
+    
+    window.addEventListener('updateNotifAdmin', handleUpdate)
+    return () => window.removeEventListener('updateNotifAdmin', handleUpdate)
   }, [])
 
   return (

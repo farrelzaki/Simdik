@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, Bell, Settings, LogOut } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import api from '../../lib/axios'
 
 const menus = [
@@ -13,6 +14,26 @@ const menus = [
 export default function PendidikLayout() {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [belumDibaca, setBelumDibaca] = useState(0)
+
+  useEffect(() => {
+    const fetchCount = () => {
+      api.get('/pendidik/notifikasi').then(res => {
+        setBelumDibaca(res.data.belum_dibaca || 0)
+      }).catch(() => {})
+    }
+    fetchCount()
+
+    const handleUpdate = (e) => {
+      if (e.detail !== undefined) {
+        setBelumDibaca(e.detail)
+      } else {
+        fetchCount()
+      }
+    }
+    window.addEventListener('updateNotifPendidik', handleUpdate)
+    return () => window.removeEventListener('updateNotifPendidik', handleUpdate)
+  }, [])
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout') } finally {
@@ -69,7 +90,11 @@ export default function PendidikLayout() {
           <button onClick={() => navigate('/pendidik/notifikasi')}
             className="relative text-[#054a5c] hover:text-[#033a47]">
             <Bell size={20} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+            {belumDibaca > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                {belumDibaca > 9 ? '9+' : belumDibaca}
+              </span>
+            )}
           </button>
           <div className="flex items-center gap-3">
             <div className="text-right">

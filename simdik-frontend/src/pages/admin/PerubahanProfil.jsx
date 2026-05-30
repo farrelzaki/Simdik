@@ -4,9 +4,9 @@ import api from '../../lib/axios'
 import { downloadFile, previewFile, isImage } from '../../lib/fileHelper'
 
 const STATUS_BADGE = {
-  pending:   { cls: 'bg-amber-100 text-amber-700',    label: 'Pending'    },
+  pending: { cls: 'bg-amber-100 text-amber-700', label: 'Pending' },
   disetujui: { cls: 'bg-emerald-100 text-emerald-700', label: 'Disetujui' },
-  ditolak:   { cls: 'bg-red-100 text-red-600',         label: 'Ditolak'   },
+  ditolak: { cls: 'bg-red-100 text-red-600', label: 'Ditolak' },
 }
 
 const FIELD_LABELS = {
@@ -19,11 +19,12 @@ const FIELD_LABELS = {
 }
 
 export default function PerubahanProfil() {
-  const [list, setList]             = useState([])
-  const [selected, setSelected]     = useState(null)
-  const [loading, setLoading]       = useState(true)
+  const [list, setList] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [catatan, setCatatan]       = useState('')
+  const [catatanTolak, setCatatanTolak] = useState('')
+  const [showTolakModal, setShowTolakModal] = useState(false)
   const [statusFilter, setStatusFilter] = useState('pending')
 
   const fetchList = () => {
@@ -35,7 +36,7 @@ export default function PerubahanProfil() {
           setSelected(res.data.data[0])
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }
 
@@ -46,11 +47,12 @@ export default function PerubahanProfil() {
     setSubmitting(true)
     try {
       await api.patch(`/admin/perubahan-profil/${selected.id_perubahan}`, {
-        status, catatan,
+        status, catatan: status === 'ditolak' ? catatanTolak : '',
       })
       fetchList()
       setSelected(null)
-      setCatatan('')
+      setCatatanTolak('')
+      setShowTolakModal(false)
     } catch {
     } finally {
       setSubmitting(false)
@@ -78,7 +80,7 @@ export default function PerubahanProfil() {
               </span>
             </div>
             <div className="flex gap-1">
-              {['pending','disetujui','ditolak'].map(s => (
+              {['pending', 'disetujui', 'ditolak'].map(s => (
                 <button key={s} onClick={() => { setStatusFilter(s); setSelected(null) }}
                   className={`flex-1 py-1 text-xs rounded-lg capitalize font-medium transition-all
                     ${statusFilter === s ? 'bg-[#1a4a6b] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
@@ -95,7 +97,7 @@ export default function PerubahanProfil() {
               <p className="text-center text-sm text-gray-400 py-8">Tidak ada request</p>
             ) : list.map(item => (
               <button key={item.id_perubahan}
-                onClick={() => { setSelected(item); setCatatan('') }}
+                onClick={() => { setSelected(item); setCatatanTolak('') }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors
                   ${selected?.id_perubahan === item.id_perubahan
                     ? 'bg-[#1a4a6b]/5 border-l-2 border-[#1a4a6b]'
@@ -144,14 +146,14 @@ export default function PerubahanProfil() {
                         Perubahan {selected.tipe}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {new Date(selected.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })}
+                        {new Date(selected.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                   </div>
                 </div>
                 {selected.status === 'pending' && (
                   <div className="flex gap-2">
-                    <button onClick={() => handleReview('ditolak')} disabled={submitting}
+                    <button onClick={() => { setShowTolakModal(true); setCatatanTolak('') }} disabled={submitting}
                       className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-40">
                       <XCircle size={15} /> Tolak
                     </button>
@@ -215,20 +217,7 @@ export default function PerubahanProfil() {
               </div>
             </div>
 
-            {/* Catatan */}
-            {selected.status === 'pending' && (
-              <div className="bg-white rounded-2xl shadow-sm p-5">
-                <h4 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                  <FileText size={16} /> Catatan (opsional)
-                </h4>
-                <p className="text-xs text-gray-400 mb-3">
-                  Catatan akan dikirim ke pendidik jika request ditolak.
-                </p>
-                <textarea value={catatan} onChange={e => setCatatan(e.target.value)}
-                  rows={3} placeholder="Tulis alasan penolakan atau catatan tambahan..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4a6b]/20 resize-none" />
-              </div>
-            )}
+
 
             {/* Catatan sebelumnya jika sudah diproses */}
             {selected.status !== 'pending' && selected.catatan && (
@@ -249,6 +238,46 @@ export default function PerubahanProfil() {
           </div>
         )}
       </div>
+
+      {/* Modal Tolak */}
+      {showTolakModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <XCircle size={18} className="text-red-500" />
+                </div>
+                <h3 className="font-bold text-gray-800">Tolak Permintaan</h3>
+              </div>
+              <button onClick={() => setShowTolakModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-4">
+              Berikan catatan alasan penolakan untuk <strong>{selected?.pendidik?.nama}</strong>.
+              Catatan ini akan dikirim ke pendidik.
+            </p>
+
+            <textarea value={catatanTolak} onChange={e => setCatatanTolak(e.target.value)}
+              rows={4}
+              placeholder="Contoh: Dokumen yang diunggah kurang jelas..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none mb-4" />
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowTolakModal(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50">
+                Batal
+              </button>
+              <button onClick={() => handleReview('ditolak')} disabled={submitting}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-60">
+                {submitting ? 'Memproses...' : 'Konfirmasi Tolak'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

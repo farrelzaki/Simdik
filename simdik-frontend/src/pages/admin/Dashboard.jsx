@@ -17,6 +17,39 @@ export default function Dashboard() {
   const navigate  = useNavigate()
   const [stats, setStats]     = useState(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportPDF = async () => {
+    setExporting(true)
+    try {
+      const res = await api.post('/admin/laporan/generate', {
+        judul: 'Laporan Statistik Yayasan',
+        tipe: 'formal',
+        konfigurasi: {
+          kolom_data: ['nama', 'nik', 'unit_kerja', 'status_kepegawaian', 'pendidikan_terakhir'],
+          filter: {},
+          urutkan: { kolom: 'nama', arah: 'asc' },
+          tampilkan_ringkasan: true,
+          tampilkan_tanda_tangan: true,
+          institusi: 'Sistem Informasi Manajemen Pendidik (SIMDIK)',
+          catatan_kaki: 'Laporan ini digenerate secara otomatis dari Dashboard SIMDIK'
+        }
+      }, { responseType: 'blob' })
+      
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'Laporan_Statistik_Yayasan.pdf')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (error) {
+      console.error(error)
+      alert('Gagal mengunduh laporan PDF')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     api.get('/admin/dashboard')
@@ -83,8 +116,11 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Statistik Yayasan</h1>
           <p className="text-sm text-gray-400 mt-1">Ringkasan data tenaga pendidik dan kependidikan terpusat.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#1a4a6b] text-white rounded-xl text-sm hover:bg-[#15395a]">
-          <Download size={15} /> Export PDF
+        <button 
+          onClick={handleExportPDF}
+          disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-[#1a4a6b] text-white rounded-xl text-sm hover:bg-[#15395a] disabled:opacity-70 disabled:cursor-not-allowed">
+          <Download size={15} /> {exporting ? 'Memproses...' : 'Export PDF'}
         </button>
       </div>
 

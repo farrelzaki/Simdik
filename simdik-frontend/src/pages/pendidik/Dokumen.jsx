@@ -1,47 +1,69 @@
-import { useState, useEffect } from 'react'
-import { Download, Upload, CheckCircle, Clock, XCircle, AlertCircle, Plus } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Download, Upload, CheckCircle, Clock, XCircle, AlertCircle, Plus, RefreshCw } from 'lucide-react'
 import api from '../../lib/axios'
 import { downloadFile } from '../../lib/fileHelper'
 
 const DOKUMEN_UTAMA = [
-  { key: 'data_identitas',   label: 'KTP / Identitas',      icon: '🪪', required: true  },
-  { key: 'data_kualifikasi', label: 'Ijazah / Kualifikasi', icon: '📜', required: true  },
+  { key: 'data_identitas',   label: 'KTP / Identitas',      icon: '🪪' },
+  { key: 'data_kualifikasi', label: 'Ijazah / Kualifikasi', icon: '📜' },
 ]
 
 const STATUS_DOK = {
-  disetujui:  { cls: 'bg-emerald-100 text-emerald-700', label: 'Disetujui',              icon: CheckCircle  },
-  pending:    { cls: 'bg-amber-100 text-amber-700',     label: 'Menunggu Verifikasi TU', icon: Clock        },
-  ditolak:    { cls: 'bg-red-100 text-red-600',         label: 'Ditolak',                icon: XCircle      },
-  tidak_ada:  { cls: 'bg-gray-100 text-gray-500',       label: 'Belum Diunggah',         icon: AlertCircle  },
+  disetujui: { cls: 'bg-emerald-100 text-emerald-700', label: 'Disetujui',              icon: CheckCircle },
+  pending:   { cls: 'bg-amber-100 text-amber-700',     label: 'Menunggu Verifikasi TU', icon: Clock       },
+  ditolak:   { cls: 'bg-red-100 text-red-600',         label: 'Ditolak',                icon: XCircle     },
+  tidak_ada: { cls: 'bg-gray-100 text-gray-500',       label: 'Belum Diunggah',         icon: AlertCircle },
 }
 
 export default function PendidikDokumen() {
-  const [profil, setProfil]           = useState(null)
-  const [perubahan, setPerubahan]     = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [uploading, setUploading]     = useState({})
-  const [success, setSuccess]         = useState('')
-  const [error, setError]             = useState('')
-
-  // State untuk sertifikasi tambahan
-  const [sertifikasi, setSertifikasi] = useState([])
+  const [profil, setProfil]                 = useState(null)
+  const [perubahan, setPerubahan]           = useState([])
+  const [loading, setLoading]               = useState(true)
+  const [refreshing, setRefreshing]         = useState(false)
+  const [uploading, setUploading]           = useState({})
+  const [success, setSuccess]               = useState('')
+  const [error, setError]                   = useState('')
   const [showTambahSert, setShowTambahSert] = useState(false)
-  const [namaSert, setNamaSert]       = useState('')
-  const [fileSert, setFileSert]       = useState(null)
-  const [uploadingSert, setUploadingSert] = useState(false)
+  const [fileSert, setFileSert]             = useState(null)
+  const [uploadingSert, setUploadingSert]   = useState(false)
+  const intervalRef = useRef(null)
 
-  const fetchData = () => {
-    Promise.all([
-      api.get('/pendidik/profil'),
-      api.get('/pendidik/perubahan'),
-    ]).then(([profilRes, perubahanRes]) => {
+  const fetchData = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true)
+    try {
+      const [profilRes, perubahanRes] = await Promise.all([
+        api.get('/pendidik/profil'),
+        api.get('/pendidik/perubahan'),
+      ])
       setProfil(profilRes.data.data)
       const perubahanDokumen = perubahanRes.data.data?.filter(p => p.tipe === 'dokumen') || []
       setPerubahan(perubahanDokumen)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }
+    } catch (e) {
+      // silent – data lama tetap tampil
+    } finally {
+      setLoading(false)
+      if (isManual) setRefreshing(false)
+    }
+  }, [])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    fetchData()
+
+    // Auto-refresh setiap 10 detik (sehingga dokumen muncul otomatis setelah admin approve)
+    intervalRef.current = setInterval(() => fetchData(), 10000)
+
+    // Refresh juga ketika user kembali ke tab/window
+    const onFocus    = () => fetchData()
+    const onVisible  = () => { if (document.visibilityState === 'visible') fetchData() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(intervalRef.current)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [fetchData])
 
   const handleUploadDokumen = async (tipe, file) => {
     if (!file) return
@@ -76,7 +98,6 @@ export default function PendidikDokumen() {
       })
       setSuccess('Sertifikasi berhasil diajukan, menunggu verifikasi admin')
       setShowTambahSert(false)
-      setNamaSert('')
       setFileSert(null)
       fetchData()
     } catch (err) {
@@ -86,10 +107,30 @@ export default function PendidikDokumen() {
     }
   }
 
-  const getPendingForDok = (tipe) =>
-    perubahan.find(p => p.status === 'pending' && p.data_baru?.[tipe])
+  // Helper: cari perubahan berdasarkan status dan field
+  const getPerubahanForDok = (tipe, status) =>
+    perubahan.find(p => p.status === status && p.data_baru?.[tipe])
 
   const dokumen = profil?.dokumen
+
+  // Tentukan status efektif untuk sebuah tipe dokumen:
+  // Prioritas: pending > disetujui (dari dokumen table) > disetujui (dari perubahan) > tidak_ada
+  const getStatusDok = (tipe) => {
+    const ada      = !!dokumen?.[tipe]
+    const pending  = getPerubahanForDok(tipe, 'pending')
+    const approved = getPerubahanForDok(tipe, 'disetujui') // fallback jika DB belum ter-update
+
+    if (pending)             return 'pending'
+    if (ada || approved)     return 'disetujui'
+    return 'tidak_ada'
+  }
+
+  // Path dokumen aktif: dari tabel dokumen jika ada, atau dari perubahan disetujui terakhir
+  const getPathDok = (tipe) => {
+    if (dokumen?.[tipe]) return dokumen[tipe]
+    const approved = getPerubahanForDok(tipe, 'disetujui')
+    return approved?.data_baru?.[tipe] || null
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Memuat dokumen...</div>
@@ -103,10 +144,20 @@ export default function PendidikDokumen() {
           <h1 className="text-2xl font-bold text-[#054a5c]">Manajemen Dokumen Pendidik</h1>
           <p className="text-sm text-gray-400 mt-1">Kelola dan perbarui berkas administrasi Anda.</p>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
-          ${profil?.status_akun === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-          <CheckCircle size={15} />
-          {profil?.status_akun === 'aktif' ? 'Terverifikasi Aktif' : 'Pending'}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Memperbarui...' : 'Perbarui Status'}
+          </button>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+            ${profil?.status_akun === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+            <CheckCircle size={15} />
+            {profil?.status_akun === 'aktif' ? 'Terverifikasi Aktif' : 'Pending'}
+          </div>
         </div>
       </div>
 
@@ -115,6 +166,7 @@ export default function PendidikDokumen() {
 
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-2 space-y-4">
+
           {/* Dokumen Utama */}
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -135,11 +187,12 @@ export default function PendidikDokumen() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {DOKUMEN_UTAMA.map(doc => {
-                  const ada      = !!dokumen?.[doc.key]
-                  const pending  = getPendingForDok(doc.key)
-                  const statusKey = pending ? 'pending' : ada ? 'disetujui' : 'tidak_ada'
-                  const status   = STATUS_DOK[statusKey]
-                  const Icon     = status.icon
+                  const statusKey = getStatusDok(doc.key)
+                  const status    = STATUS_DOK[statusKey]
+                  const Icon      = status.icon
+                  const path      = getPathDok(doc.key)
+                  const pending   = getPerubahanForDok(doc.key, 'pending')
+
                   return (
                     <tr key={doc.key} className="hover:bg-gray-50">
                       <td className="px-5 py-4">
@@ -159,8 +212,8 @@ export default function PendidikDokumen() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          {ada && (
-                            <button onClick={() => downloadFile(dokumen[doc.key], doc.label)}
+                          {path && (
+                            <button onClick={() => downloadFile(path, doc.label)}
                               className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
                               <Download size={12} /> Unduh
                             </button>
@@ -171,7 +224,7 @@ export default function PendidikDokumen() {
                               {uploading[doc.key] ? (
                                 <><div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> Uploading...</>
                               ) : (
-                                <><Upload size={12} /> Update</>
+                                <><Upload size={12} /> {path ? 'Update' : 'Upload'}</>
                               )}
                               <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
                                 disabled={uploading[doc.key]}
@@ -202,12 +255,6 @@ export default function PendidikDokumen() {
               <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-gray-500 font-medium block mb-1">Nama Sertifikasi</label>
-                    <input value={namaSert} onChange={e => setNamaSert(e.target.value)}
-                      placeholder="Contoh: Sertifikasi Pendidik (SERDOS)"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#054a5c]/20" />
-                  </div>
-                  <div>
                     <label className="text-xs text-gray-500 font-medium block mb-1">File Sertifikasi</label>
                     <label className={`flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all
                       ${fileSert ? 'border-[#054a5c] bg-[#054a5c]/5' : 'border-gray-300 hover:border-[#054a5c]/40'}`}>
@@ -221,7 +268,7 @@ export default function PendidikDokumen() {
                     </label>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setShowTambahSert(false); setNamaSert(''); setFileSert(null) }}
+                    <button onClick={() => { setShowTambahSert(false); setFileSert(null) }}
                       className="flex-1 border border-gray-200 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-50">
                       Batal
                     </button>
@@ -236,60 +283,55 @@ export default function PendidikDokumen() {
 
             {/* List Sertifikasi */}
             <div className="divide-y divide-gray-50">
-              {/* Sertifikasi aktif yang sudah disetujui */}
-              {dokumen?.data_sertifikasi && (
-                <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">🏆</span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">Sertifikasi</p>
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        <CheckCircle size={10} /> Disetujui
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => downloadFile(dokumen.data_sertifikasi, 'Sertifikasi')}
-                      className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
-                      <Download size={12} /> Unduh
-                    </button>
-                    {!getPendingForDok('data_sertifikasi') && (
-                      <label className="flex items-center gap-1 px-3 py-1.5 bg-[#054a5c] text-white rounded-lg text-xs cursor-pointer hover:bg-[#033a47]">
-                        <Upload size={12} /> Update
-                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={e => handleUploadDokumen('data_sertifikasi', e.target.files[0])} />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Hanya tampilkan SATU pending sertifikasi terbaru saja */}
               {(() => {
-                const pendingSert = perubahan
-                  .filter(p => p.data_baru?.data_sertifikasi && p.status === 'pending')
-                  .slice(0, 1) // ambil hanya yang terbaru
-                return pendingSert.map(p => (
-                  <div key={p.id_perubahan} className="flex items-center justify-between px-5 py-4 bg-amber-50">
+                const sertPath    = getPathDok('data_sertifikasi')
+                const sertStatus  = getStatusDok('data_sertifikasi')
+                const sertPending = getPerubahanForDok('data_sertifikasi', 'pending')
+
+                if (sertStatus === 'tidak_ada') {
+                  return (
+                    <div className="px-5 py-8 text-center text-gray-400 text-sm">
+                      Belum ada sertifikasi. Klik &quot;Tambah Sertifikasi&quot; untuk mengunggah.
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className={`flex items-center justify-between px-5 py-4 ${sertStatus === 'pending' ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                     <div className="flex items-center gap-3">
                       <span className="text-xl">🏆</span>
                       <div>
-                        <p className="text-sm font-semibold text-gray-800">Sertifikasi Baru</p>
-                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                          <Clock size={10} /> Menunggu Verifikasi
-                        </span>
+                        <p className="text-sm font-semibold text-gray-800">Sertifikasi</p>
+                        {sertStatus === 'disetujui' && (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                            <CheckCircle size={10} /> Disetujui
+                          </span>
+                        )}
+                        {sertStatus === 'pending' && (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                            <Clock size={10} /> Menunggu Verifikasi
+                          </span>
+                        )}
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {sertPath && sertStatus === 'disetujui' && (
+                        <button onClick={() => downloadFile(sertPath, 'Sertifikasi')}
+                          className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
+                          <Download size={12} /> Unduh
+                        </button>
+                      )}
+                      {!sertPending && sertStatus === 'disetujui' && (
+                        <label className="flex items-center gap-1 px-3 py-1.5 bg-[#054a5c] text-white rounded-lg text-xs cursor-pointer hover:bg-[#033a47]">
+                          <Upload size={12} /> Update
+                          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={e => handleUploadDokumen('data_sertifikasi', e.target.files[0])} />
+                        </label>
+                      )}
+                    </div>
                   </div>
-                ))
+                )
               })()}
-
-              {/* Kalau tidak ada sertifikasi sama sekali */}
-              {!dokumen?.data_sertifikasi && perubahan.filter(p => p.data_baru?.data_sertifikasi && p.status === 'pending').length === 0 && (
-                <div className="px-5 py-8 text-center text-gray-400 text-sm">
-                  Belum ada sertifikasi. Klik "Tambah Sertifikasi" untuk mengunggah.
-                </div>
-              )}
             </div>
           </div>
         </div>
