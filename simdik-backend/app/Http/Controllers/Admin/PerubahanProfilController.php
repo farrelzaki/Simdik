@@ -97,6 +97,8 @@ class PerubahanProfilController extends Controller
                         \Illuminate\Support\Facades\Storage::delete($oldPath);
                     }
 
+                    $dataTambahan = $dokumen->data_tambahan ?? [];
+
                     // Pindahkan file ke lokasi permanen
                     foreach ($updateData as $field => $path) {
                         if (str_starts_with($path, 'dokumen_perubahan/')) {
@@ -104,6 +106,16 @@ class PerubahanProfilController extends Controller
                             \Illuminate\Support\Facades\Storage::move($path, $newPath);
                             $updateData[$field] = $newPath;
                         }
+
+                        // Jika key adalah custom (misal sertifikasi_*), pindahkan ke data_tambahan
+                        if (str_starts_with($field, 'sertifikasi_')) {
+                            $dataTambahan[$field] = $updateData[$field];
+                            unset($updateData[$field]);
+                        }
+                    }
+
+                    if (!empty($dataTambahan)) {
+                        $updateData['data_tambahan'] = $dataTambahan;
                     }
 
                     $dokumen->fill($updateData)->save();

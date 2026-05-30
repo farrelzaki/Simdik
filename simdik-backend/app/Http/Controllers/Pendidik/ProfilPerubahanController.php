@@ -124,7 +124,11 @@ class ProfilPerubahanController extends Controller
     public function ajukanDokumen(Request $request)
     {
         $request->validate([
-            'tipe_dokumen' => 'required|in:data_identitas,data_kualifikasi,data_sertifikasi',
+            'tipe_dokumen' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (!in_array($value, ['data_identitas', 'data_kualifikasi', 'data_sertifikasi']) && !str_starts_with($value, 'sertifikasi_')) {
+                    $fail('Tipe dokumen tidak valid.');
+                }
+            }],
             'file'         => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 

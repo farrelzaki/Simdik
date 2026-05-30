@@ -461,18 +461,54 @@ export default function DataPendidik() {
 
               {/* TAB: BERKAS */}
               {activeTab === 'berkas' && (
-                <div className="grid grid-cols-2 gap-5">
-                  {[
-                    { label: 'KTP / Identitas',      key: 'data_identitas'   },
-                    { label: 'Ijazah / Kualifikasi', key: 'data_kualifikasi' },
-                    { label: 'Sertifikasi',          key: 'data_sertifikasi' },
-                  ].map((doc, i) => (
-                    <DokumenPreview
-                      key={i}
-                      path={selected.dokumen?.[doc.key]}
-                      label={doc.label}
-                    />
-                  ))}
+                <div className="space-y-6">
+                  {/* Dokumen Utama */}
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <FileText size={16} className="text-[#1a4a6b]" />
+                      Dokumen Utama
+                    </h4>
+                    <div className="grid grid-cols-2 gap-5">
+                      <DokumenPreview
+                        path={selected.dokumen?.data_identitas}
+                        label="KTP / Identitas"
+                      />
+                      <DokumenPreview
+                        path={selected.dokumen?.data_kualifikasi}
+                        label="Ijazah / Kualifikasi"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sertifikasi */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <GraduationCap size={16} className="text-[#1a4a6b]" />
+                        Sertifikasi
+                      </h4>
+                      <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                        {Object.keys(selected.dokumen || {}).filter(k => k === 'data_sertifikasi' || k.startsWith('sertifikasi_')).filter(k => !!selected.dokumen[k]).length} Berkas
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-5">
+                      {Object.keys(selected.dokumen || {})
+                        .filter(k => (k === 'data_sertifikasi' || k.startsWith('sertifikasi_')) && !!selected.dokumen[k])
+                        .map((key, i) => (
+                          <DokumenPreview
+                            key={key}
+                            path={selected.dokumen[key]}
+                            label={key === 'data_sertifikasi' ? 'Sertifikasi' : `Sertifikasi Tambahan ${i}`}
+                          />
+                        ))}
+                      
+                      {Object.keys(selected.dokumen || {}).filter(k => k === 'data_sertifikasi' || k.startsWith('sertifikasi_')).filter(k => !!selected.dokumen[k]).length === 0 && (
+                        <div className="col-span-2 text-center py-6 text-sm text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                          Belum ada sertifikasi yang diunggah
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
