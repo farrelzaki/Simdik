@@ -112,16 +112,7 @@ export default function Pengaturan() {
         </form>
       </div>
 
-      {/* Bantuan */}
-      <div className="bg-gradient-to-r from-[#1a4a6b] to-[#2a6a9b] rounded-2xl p-6 flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-white mb-1">Butuh bantuan?</h3>
-          <p className="text-sm text-white/60">Hubungi tim teknis jika ada masalah dengan sistem.</p>
-        </div>
-        <button className="flex items-center gap-2 bg-white text-[#1a4a6b] px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 flex-shrink-0">
-          <HelpCircle size={15} /> Hubungi Dukungan
-        </button>
-      </div>
+
     </div>
   )
 }
